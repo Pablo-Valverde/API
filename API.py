@@ -11,18 +11,28 @@ __doc__ = {
 #TODO: Get from config file
 DIR_NAME = "repositories"
 REMOTE_FILE = "data"#Path(REMOTE_URL).stem
-
 AXOLOTS = "axolots"
 
-def readlines():
+AXOLOTS_FILE = path.join(DIR_NAME, REMOTE_FILE, AXOLOTS)
+
+
+def get_from_file_or_saved(path, iterable = None):
+    iterable = iterable if iterable else []
+    buffer = read_lines(path)
+    iterable.clear()
+    iterable += buffer if buffer else iterable
+    return iterable
+
+def read_lines(path):
+    buffer = []
     try:
-        with open(path.join(DIR_NAME, REMOTE_FILE, AXOLOTS), "r") as axolots_file:
-            axolots_data = axolots_file.readlines()
+        with open(path, "r") as axolots_file:
+            buffer = axolots_file.readlines()
     except (FileNotFoundError, PermissionError):
         pass
-    return axolots_data
+    return buffer
 
-axolots_data = readlines()
+axolots_data = get_from_file_or_saved(AXOLOTS_FILE)
 
 app = Flask(__name__)
 
@@ -48,11 +58,7 @@ def get_version() -> str:
 
 @app.route("/axolot/random/")
 def get_axolot() -> str:
-    try:
-        with open(path.join(DIR_NAME, REMOTE_FILE, AXOLOTS), "r") as axolots_file:
-            axolots_data = axolots_file.readlines()
-    except FileNotFoundError:
-        pass    
+    get_from_file_or_saved(AXOLOTS_FILE, axolots_data)
     axolot = random.choice(axolots_data).replace("\n","")
     return normalize_dict({"img_url":axolot}).__str__()
 
