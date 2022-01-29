@@ -22,6 +22,7 @@ META = "https://api.github.com/meta"
 META_FILE = "meta"
 
 try:
+    raise KeyError()
     meta = get(META).json()
     ips = meta["hooks"]
     with open(META_FILE, "w") as fp:
@@ -29,8 +30,9 @@ try:
 except KeyError:
     with open(META_FILE, "r") as fp:
         meta = json.load(fp)
+    ips = meta["hooks"]
 
-threading.Thread(target=reporeader.pull, args=(DIR_NAME, REMOTE_URL)).start()
+#threading.Thread(target=reporeader.pull, args=(DIR_NAME, REMOTE_URL)).start()
 
 app = Flask(__name__)
 
