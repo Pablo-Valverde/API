@@ -1,5 +1,6 @@
 from flask import Flask, Response, request
 from pathlib import Path
+from requests import get
 import json
 import threading
 import iptools
@@ -13,7 +14,6 @@ except ImportError:
 
 #TODO: Get from config file
 REMOTE_URL = "https://github.com/Pablo-Valverde/bot_data.git"
-REMOTE_FILE = "data"#Path(REMOTE_URL).stem
 DIR_NAME = "C:/Users/pablo/Documents/GitHub/API/repositories"
 WAIT_FOR_EVENTS = 5
 
@@ -43,7 +43,7 @@ def hook():
             continue
 
         if not REMOTE_URL.find(from_repo) == -1:
-            t = threading.Thread(target=reporeader.pull, args=(DIR_NAME, REMOTE_FILE, REMOTE_URL))
+            t = threading.Thread(target=reporeader.pull, args=(DIR_NAME, REMOTE_URL))
             pytimer.refresh(lambda x: x.start(), WAIT_FOR_EVENTS, t)
             return Response(status=200)
 
@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     ips = meta["hooks"]
 
-    t = threading.Thread(target=reporeader.pull, args=(DIR_NAME, REMOTE_FILE, REMOTE_URL))
+    t = threading.Thread(target=reporeader.pull, args=(DIR_NAME, REMOTE_URL))
     pytimer.refresh(lambda x: x.start(), 3, t)
 
     app.run(

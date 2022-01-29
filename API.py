@@ -10,10 +10,9 @@ __doc__ = {
 
 #TODO: Get from config file
 DIR_NAME = "repositories"
-REMOTE_FILE = "data"#Path(REMOTE_URL).stem
 AXOLOTS = "axolots"
 
-AXOLOTS_FILE = path.join(DIR_NAME, REMOTE_FILE, AXOLOTS)
+AXOLOTS_FILE = path.join(DIR_NAME, AXOLOTS)
 
 
 def get_from_file_or_saved(path, iterable = None):

@@ -4,18 +4,15 @@ import git
 import shutil
 
 
-def pull(DIR_NAME, NAME, REMOTE_URL):
+def pull(DIR_NAME, REMOTE_URL):
     repo_directory = Path(DIR_NAME)
-    repo_name = Path(NAME)
-    repo_path = repo_directory.joinpath(repo_name)
-
     for _ in range(0,2):
         try:
-            origin = __init_repo__(REMOTE_URL, repo_path)
-            return __pull_rm__(repo_path, origin)
+            origin = __init_repo__(REMOTE_URL, repo_directory)
+            return __pull_rm__(repo_directory, origin)
         except GitCommandError:
             return
-    raise RuntimeError("Couldn't pull '%s' to '%s'" % (REMOTE_URL, repo_path))
+    raise RuntimeError("Couldn't pull '%s' to '%s'" % (REMOTE_URL, repo_directory))
 
 def __pull_rm__(repo_path, origin):
     origin.fetch()
