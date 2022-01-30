@@ -1,5 +1,6 @@
 from ipaddress import ip_address
 from flask import Flask
+from waitress import serve
 from os import path
 import datetime
 import random
@@ -90,7 +91,8 @@ def get_insulto() -> str:
 
 if __name__ == "__main__":
 
-    app.run(
+    serve(
+        app,
         host=   SERVER_IP,
         port=   SERVER_PORT
     )
