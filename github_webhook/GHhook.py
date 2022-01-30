@@ -1,24 +1,64 @@
+from ipaddress import ip_address
 from flask import Flask, Response, request
-from pathlib import Path
 from requests import get
+from pathlib import Path
+import argparse
 import json
-import threading
 import iptools
 try:
-    import pytimer
+    import LIFOtimer
     import reporeader
 except ImportError:
-    from . import pytimer
+    from . import LIFOtimer
     from . import reporeader
 
 
-#TODO: Get from config file
-REMOTE_URL = "https://github.com/Pablo-Valverde/bot_data.git"
-DIR_NAME = "C:/Users/pablo/Documents/GitHub/API/repositories"
-WAIT_FOR_EVENTS = 5
+def parse():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "config_file",
+        help="Configuration file",
+        type=lambda s: str(s) 
+    )
+    parser.add_argument(
+        "-ip",
+        help="IP address of this server",
+        type=lambda s: ip_address(s).__str__(),
+        default="0.0.0.0"
+    )
+    parser.add_argument(
+        "-port",
+        "-p",
+        help="Bind this server to this PORT",
+        type=lambda s: int(s),
+        default=443
+    )
+
+    return parser.parse_args()
+
+args = parse()
+
+config_file = args.config_file
+
+try:
+    with open(config_file, "r", encoding="UTF-8") as config:
+        conf = json.load(config)
+except json.decoder.JSONDecodeError:
+    print("%s must be a valid configuration file" % config_file)
+    exit()
+
+SERVER_IP = args.ip
+SERVER_PORT = args.port
+
+REMOTE_URL = conf["url_repositorio"]
+DIR_NAME = conf["ruta_repositorios"]
+WAIT_FOR_EVENTS = conf["tiempo_espera_pull"]
+UPDATE_META = conf["pedir_meta_github"]
 
 META = "https://api.github.com/meta"
 META_FILE = Path(META).stem
+
+AVAILABLE_METHOD = "push"
 
 app = Flask(__name__)
 
@@ -43,8 +83,7 @@ def hook():
             continue
 
         if not REMOTE_URL.find(from_repo) == -1:
-            t = threading.Thread(target=reporeader.pull, args=(DIR_NAME, REMOTE_URL))
-            pytimer.refresh(lambda x: x.start(), WAIT_FOR_EVENTS, t)
+            LIFOtimer.refresh(reporeader.pull, WAIT_FOR_EVENTS, DIR_NAME, REMOTE_URL)
             return Response(status=200)
 
         break
@@ -54,22 +93,24 @@ def hook():
 if __name__ == "__main__":
 
     try:
-        raise KeyError()
+        if not UPDATE_META: raise KeyError()
         meta = get(META).json()
         ips = meta["hooks"]
         with open(META_FILE, "w") as fp:
             json.dump(meta, fp)
     except KeyError:
+        if not Path(META_FILE).is_file():
+            print("%s is not a file, enable 'pedir_meta_github' to fetch '%s'" % (META_FILE, META))
+            exit()
         with open(META_FILE, "r") as fp:
             meta = json.load(fp)
 
     ips = meta["hooks"]
 
-    t = threading.Thread(target=reporeader.pull, args=(DIR_NAME, REMOTE_URL))
-    pytimer.refresh(lambda x: x.start(), 3, t)
+    LIFOtimer.refresh(reporeader.pull, 0, DIR_NAME, REMOTE_URL)
 
     app.run(
-        host=               "0.0.0.0",
-        port=               443,
+        host=               SERVER_IP,
+        port=               SERVER_PORT,
         ssl_context=        'adhoc'
     )
