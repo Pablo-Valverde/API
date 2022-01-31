@@ -170,7 +170,7 @@ if __name__ == "__main__":
 
     ips = meta["hooks"]
 
-    refresh(pull, 0, DIR_NAME, REMOTE_URL)
+    refresh(pull, WAIT_FOR_EVENTS, DIR_NAME, REMOTE_URL)
 
     app_logging.info("Server running on address https://%s:%d/" % (SERVER_IP, SERVER_PORT))
 
