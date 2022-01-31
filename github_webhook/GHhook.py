@@ -1,30 +1,38 @@
-from ipaddress import ip_address
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 from flask import Flask, Response, request
 from requests import get
 from pathlib import Path
+from os import mkdir, path
+from ipaddress import ip_address
+import datetime
+import logging
+import sys
 import argparse
 import json
 import iptools
 try:
-    import LIFOtimer
-    import reporeader
+    from LIFOtimer import refresh
+    from reporeader import pull
 except ImportError:
-    from . import LIFOtimer
-    from . import reporeader
+    from .LIFOtimer import refresh
+    from .reporeader import pull
 
 
+#---- Initial configuration ----#
 def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "config_file",
-        help="Configuration file",
-        type=lambda s: str(s) 
+        "repository_url",
+        help="Repository to pull from",
+        type=lambda s: str(s),
     )
     parser.add_argument(
         "-ip",
         help="IP address of this server",
         type=lambda s: ip_address(s).__str__(),
-        default="0.0.0.0"
+        default="127.0.0.1"
     )
     parser.add_argument(
         "-port",
@@ -33,34 +41,89 @@ def parse():
         type=lambda s: int(s),
         default=443
     )
+    parser.add_argument(
+        "-save_rep_path",
+        "-save",
+        help="Path where the repository will be saved",
+        type=lambda s: str(s),
+        default="data"
+    )
+    parser.add_argument(
+        "-wait_until_pull",
+        "-wait",
+        "-w",
+        help="Wait time until the pull request is made",
+        type=lambda s: float(s),
+        default=5
+    )
+    parser.add_argument(
+        "--fetch_meta",
+        "--fetch",
+        "--meta",
+        help="On start, ¿fetch github meta?",
+        action="store_true",
+        default=False
+    )
 
     return parser.parse_args()
 
 args = parse()
 
-config_file = args.config_file
+logs_file = "logs/"
 
-try:
-    with open(config_file, "r", encoding="UTF-8") as config:
-        conf = json.load(config)
-except json.decoder.JSONDecodeError:
-    print("%s must be a valid configuration file" % config_file)
-    exit()
+if not path.isdir("logs"):
+    if not path.exists("logs"):
+        mkdir("logs")
+    else:
+        logs_file = ""
+
+app_logging = logging.getLogger("")
+app_logging.setLevel(logging.DEBUG)
+
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+stdout_handler.setFormatter(formatter)
+
+now = datetime.datetime.now()
+now = now.strftime("%d.%m.%Y-%H.%M.%S")
+file_handler = logging.FileHandler("%s%sGHW.log" % (logs_file,now), "w", encoding="UTF-8")
+file_handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+
+app_logging.addHandler(stdout_handler)
+app_logging.addHandler(file_handler)
 
 SERVER_IP = args.ip
 SERVER_PORT = args.port
-
-REMOTE_URL = conf["url_repositorio"]
-DIR_NAME = conf["ruta_repositorios"]
-WAIT_FOR_EVENTS = conf["tiempo_espera_pull"]
-UPDATE_META = conf["pedir_meta_github"]
+REMOTE_URL = args.repository_url
+DIR_NAME = args.save_rep_path
+WAIT_FOR_EVENTS = args.wait_until_pull
+UPDATE_META = args.fetch_meta
 
 META = "https://api.github.com/meta"
 META_FILE = Path(META).stem
 
 AVAILABLE_METHOD = "push"
+#---- End of Initial configuration ----#
 
 app = Flask(__name__)
+
+@app.after_request
+def request_in(response) -> str:
+    status = response.status_code
+    try:
+        sender_ip = request.headers["X-Forwarded-For"]
+    except KeyError:
+        sender_ip = request.remote_addr
+    method = request.method
+    path = request.path
+    app_logging.info("%d - %s - %s %s" % (status, sender_ip, method, path))
+    return response
 
 @app.post("/")
 def hook():
@@ -83,7 +146,7 @@ def hook():
             continue
 
         if not REMOTE_URL.find(from_repo) == -1:
-            LIFOtimer.refresh(reporeader.pull, WAIT_FOR_EVENTS, DIR_NAME, REMOTE_URL)
+            refresh(pull, WAIT_FOR_EVENTS, DIR_NAME, REMOTE_URL)
             return Response(status=200)
 
         break
@@ -100,17 +163,19 @@ if __name__ == "__main__":
             json.dump(meta, fp)
     except KeyError:
         if not Path(META_FILE).is_file():
-            print("%s is not a file, enable 'pedir_meta_github' to fetch '%s'" % (META_FILE, META))
+            print("If running for the first time enable --fetch")
             exit()
         with open(META_FILE, "r") as fp:
             meta = json.load(fp)
 
     ips = meta["hooks"]
 
-    LIFOtimer.refresh(reporeader.pull, 0, DIR_NAME, REMOTE_URL)
+    refresh(pull, 0, DIR_NAME, REMOTE_URL)
+
+    app_logging.info("Server running on address https://%s:%d/" % (SERVER_IP, SERVER_PORT))
 
     app.run(
         host=               SERVER_IP,
         port=               SERVER_PORT,
-        ssl_context=        'adhoc'
+        ssl_context=        "adhoc"
     )
