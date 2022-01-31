@@ -1,4 +1,4 @@
 flask
-requests
 iptools
 waitress
+sudo apt-get install python3-git

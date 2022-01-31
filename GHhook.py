@@ -14,9 +14,11 @@ import json
 import iptools
 try:
     from LIFOtimer import refresh
-    from reporeader import pull
 except ImportError:
     from .LIFOtimer import refresh
+try:
+    from reporeader import pull
+except ImportError:
     from .reporeader import pull
 
 
