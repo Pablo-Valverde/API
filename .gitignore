@@ -4,3 +4,5 @@ temp/
 meta
 repositories/data/
 repositories/
+*.log
+data/
