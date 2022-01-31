@@ -1,3 +1,6 @@
+import random
+
+
 class cachedfile(list):
 
     def __init__(self, path) -> None:
@@ -19,3 +22,10 @@ class cachedfile(list):
         except (FileNotFoundError, PermissionError):
             pass
         return buffer
+
+    def readrandom(self):
+        self.update()
+        if not self.__len__():
+            return None
+        choice = random.choice(self).replace("\n","")
+        return choice
