@@ -2,13 +2,12 @@
 # -*- coding: utf-8 -*-
 
 from ipaddress import ip_address
+from pathlib import Path
+from time import sleep
 from flask import Flask, Response, request
 from waitress import serve
 from os import mkdir, path
-try:
-    from cachedfile import cachedfile
-except ImportError:
-    from .cachedfile import cachedfile
+import random
 import sys
 import datetime
 import argparse
@@ -76,17 +75,8 @@ app_logging.addHandler(file_handler)
 SERVER_IP = args.ip
 SERVER_PORT = args.port
 DIR_NAME = args.data_path
-INSULTS = "insultos.phrs"
 
 app_logging.info("Reading data files from '%s' directory" % DIR_NAME)
-app_logging.info("Got 'insultos' file '%s'" % INSULTS)
-
-INSULTOS_PHRS_FILE = path.join(DIR_NAME, INSULTS)
-app_logging.info("'insultos' final path '%s'" % INSULTOS_PHRS_FILE)
-
-insultos_data = cachedfile(INSULTOS_PHRS_FILE)
-ajolotes_data = cachedfile(path.join(DIR_NAME, "axolots.urls"))
-app_logging.info("Got %d 'insultos'" % insultos_data.__len__())
 #---- End of Initial configuration ----#
 
 app = Flask(__name__)
@@ -139,21 +129,23 @@ def request_in(response) -> str:
 def get_version() -> str:
     return normalize_dict(__doc__)
 
-@app.route("/insulto/aleatorio/")
-@app.route("/insulto/aleatorio")
-def get_insulto() -> str:
-    insulto = insultos_data.readrandom()
-    if not insulto:
-        return normalize_error(503, "Servicio no disponible actualmente")
-    return normalize_dict({"insulto":insulto})
+@app.route("/<route>/aleatorio/")
+@app.route("/<route>/aleatorio")
+def get_random(route) -> str:
+    path = Path(DIR_NAME, route)
+    buffer = []
+    if not path.is_file():
+        return normalize_error(404, "Ruta incorrecta")
+    try:
+        with open(path, mode="r", encoding="UTF-8") as file:
+            buffer = file.readlines()
+    except PermissionError:
+        return normalize_error(404, "Ruta incorrecta")
 
-@app.route("/ajolote/aleatorio/")
-@app.route("/ajolote/aleatorio")
-def get_ajolote() -> str:
-    ajolote = ajolotes_data.readrandom()
-    if not ajolote:
+    if not buffer:
         return normalize_error(503, "Servicio no disponible actualmente")
-    return normalize_dict({"ajolote":ajolote})
+    item = random.choice(buffer).replace("\n","")
+    return normalize_dict({"value":item})
 
 if __name__ == "__main__":
 
