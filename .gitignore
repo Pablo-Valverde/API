@@ -1,8 +1,9 @@
 
 *.pyc
 temp/
-meta
+.meta
 repositories/data/
 repositories/
 *.log
 data/
+meta

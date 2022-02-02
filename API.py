@@ -1,9 +1,8 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 from ipaddress import ip_address
 from pathlib import Path
-from time import sleep
 from flask import Flask, Response, request
 from waitress import serve
 from os import mkdir, path

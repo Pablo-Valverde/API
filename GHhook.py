@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 from flask import Flask, Response, request
@@ -108,7 +108,7 @@ WAIT_FOR_EVENTS = args.wait_until_pull
 UPDATE_META = args.fetch_meta
 
 META = "https://api.github.com/meta"
-META_FILE = Path(META).stem
+META_FILE = ".%s" % Path(META).stem
 
 AVAILABLE_METHOD = "push"
 #---- End of Initial configuration ----#
