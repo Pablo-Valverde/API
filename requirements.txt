@@ -1,6 +1,2 @@
 flask
-iptools
-requests
 waitress
-gitpython
-pyopenssl
