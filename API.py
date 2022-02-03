@@ -3,9 +3,9 @@
 
 from ipaddress import ip_address
 from pathlib import Path
-from flask import Flask, Response, request
-from waitress import serve
+from flask import Flask, Response, request, jsonify
 from os import mkdir, path
+from waitress import serve
 import random
 import sys
 import datetime
@@ -94,7 +94,7 @@ def normalize_dict(dict) -> dict:
         "status":           status
     }
 
-    return Response(response.__str__()) 
+    return jsonify(response) 
 
 def normalize_error(code, message):
     now = datetime.datetime.now()
@@ -109,7 +109,9 @@ def normalize_error(code, message):
         "status":           status
     }
 
-    return Response(response.__str__(), status=code) 
+    aux = jsonify(response)
+    aux.status_code = code
+    return aux
 
 @app.after_request
 def request_in(response) -> str:
