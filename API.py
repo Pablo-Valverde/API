@@ -1,16 +1,17 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+from werkzeug.exceptions import NotFound, ServiceUnavailable
+
 from ipaddress import ip_address
 from pathlib import Path
-from flask import Flask, Response, request, jsonify
-from os import mkdir, path
-from waitress import serve
+from flask import Flask, request, jsonify
 import random
 import sys
 import datetime
 import argparse
 import logging
+import traceback
 
 
 __doc__ = {
@@ -45,38 +46,31 @@ def parse():
 
 args = parse()
 
-logs_file = "logs/"
+logger = logging.getLogger("werkzeug")
+logger.setLevel(logging.ERROR)
 
-if not path.isdir("logs"):
-    if not path.exists("logs"):
-        mkdir("logs")
-    else:
-        logs_file = ""
-
-app_logging = logging.getLogger("")
-app_logging.setLevel(logging.DEBUG)
+root = logging.getLogger("felaciano")
+root.setLevel(logging.DEBUG)
 
 stdout_handler = logging.StreamHandler(sys.stdout)
 stdout_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 stdout_handler.setFormatter(formatter)
 
-now = datetime.datetime.now()
-now = now.strftime("%d.%m.%Y-%H.%M.%S")
-file_handler = logging.FileHandler("%s%sAPI.log" % (logs_file,now), "w", encoding="UTF-8")
-file_handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-
-app_logging.addHandler(stdout_handler)
-app_logging.addHandler(file_handler)
+root.addHandler(stdout_handler)
 
 SERVER_IP = args.ip
 SERVER_PORT = args.port
 DIR_NAME = args.data_path
 
-app_logging.info("Reading data files from '%s' directory" % DIR_NAME)
+root.info("Reading data files from '%s' directory" % DIR_NAME)
 #---- End of Initial configuration ----#
+
+errors = {
+    404: "Resource not found",
+    500: "Unexpected internal behaviour",
+    503: "This service is actually unavailable"
+}
 
 app = Flask(__name__)
 
@@ -122,8 +116,20 @@ def request_in(response) -> str:
         sender_ip = request.remote_addr
     method = request.method
     path = request.path
-    app_logging.info("%d - %s - %s %s" % (status, sender_ip, method, path))
+    root.info("%d - %s - %s %s" % (status, sender_ip, method, path))
     return response
+
+@app.errorhandler(Exception)
+def on_error(error:Exception) -> str:
+    excp = traceback.format_exc()
+    try:
+        code = error.code
+        message = errors[code]
+    except (KeyError, AttributeError):
+        code = 500
+        message = errors[code]
+        root.error(excp)
+    return normalize_error(code, message)
 
 @app.route("/version/")
 @app.route("/version")
@@ -136,22 +142,23 @@ def get_random(route) -> str:
     path = Path(DIR_NAME, route)
     buffer = []
     if not path.is_file():
-        return normalize_error(404, "Ruta incorrecta")
+        raise NotFound()
     try:
         with open(path, mode="r", encoding="UTF-8") as file:
             buffer = file.readlines()
     except PermissionError:
-        return normalize_error(404, "Ruta incorrecta")
+        raise NotFound()
 
     if not buffer:
-        return normalize_error(503, "Servicio no disponible actualmente")
+        raise ServiceUnavailable()
     item = random.choice(buffer).replace("\n","")
-    return normalize_dict({"value":item})
+    return normalize_dict({"value":item.lower()})
 
 if __name__ == "__main__":
 
-    serve(
-        app,
+    root.info("Server running on address https://%s:%d/" % (SERVER_IP, SERVER_PORT))
+
+    app.run(
         host=   SERVER_IP,
         port=   SERVER_PORT
     )
